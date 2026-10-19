@@ -18,3 +18,29 @@ spring:
           multiplier: 2.0
           max-interval: 5000ms
         default-requeue-rejected: false
+
+        
+barriodigital:
+  messaging:
+    exchanges:
+      direct: cmd.direct
+      topic: cmd.topic
+      dead-letter: cmd.dead.dlx
+    email:
+      queue: q.cmd.email
+      dead-letter-queue: q.cmd.email.dlq
+      direct-key: email.send
+      topic-key: email.*
+      dead-letter-key: email.dlq
+    crew:
+      queue: q.cmd.crew
+      dead-letter-queue: q.cmd.crew.dlq
+      direct-key: crew.ticket
+      topic-key: crew.#
+      dead-letter-key: crew.dlq
+    certificate:
+      queue: q.cmd.certificate
+      dead-letter-queue: q.cmd.certificate.dlq
+      direct-key: certificate.gen
+      topic-key: certificate.*
+      dead-letter-key: certificate.dlq
