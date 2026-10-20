@@ -5,6 +5,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -25,6 +26,11 @@ public class RabbitMQConfig {
     @Bean
     public DirectExchange directExchange() {
         return new DirectExchange(messaging.exchanges().direct());
+    }
+
+    @Bean
+    public TopicExchange topicExchange() {
+        return new TopicExchange(messaging.exchanges().topic());
     }
 
     @Bean
@@ -64,6 +70,38 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(messaging.certificate().deadLetterQueue()).build();
     }
 
+    // --- Bindings direct (routing key exacta) ---
+    @Bean
+    public Binding emailDirectBinding() {
+        return directBinding(emailQueue(), messaging.email());
+    }
+
+    @Bean
+    public Binding crewDirectBinding() {
+        return directBinding(crewQueue(), messaging.crew());
+    }
+
+    @Bean
+    public Binding certificateDirectBinding() {
+        return directBinding(certificateQueue(), messaging.certificate());
+    }
+
+    // --- Bindings topic (patrón con comodines) ---
+    @Bean
+    public Binding emailTopicBinding() {
+        return topicBinding(emailQueue(), messaging.email());
+    }
+
+    @Bean
+    public Binding crewTopicBinding() {
+        return topicBinding(crewQueue(), messaging.crew());
+    }
+
+    @Bean
+    public Binding certificateTopicBinding() {
+        return topicBinding(certificateQueue(), messaging.certificate());
+    }
+
     // --- Bindings de las DLQ ---
     @Bean
     public Binding emailDlqBinding() {
@@ -91,6 +129,14 @@ public class RabbitMQConfig {
                 .deadLetterExchange(messaging.exchanges().deadLetter())
                 .deadLetterRoutingKey(domain.deadLetterKey())
                 .build();
+    }
+
+    private Binding directBinding(Queue queue, MessagingProperties.Domain domain) {
+        return BindingBuilder.bind(queue).to(directExchange()).with(domain.directKey());
+    }
+
+    private Binding topicBinding(Queue queue, MessagingProperties.Domain domain) {
+        return BindingBuilder.bind(queue).to(topicExchange()).with(domain.topicKey());
     }
 
     private Binding dlqBinding(Queue dlq, MessagingProperties.Domain domain) {
