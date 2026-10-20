@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties({ MessagingProperties.class, RetryProperties.class })
+@EnableConfigurationProperties({ MessagingProperties.class, RetryProperties.class, IdempotencyProperties.class })
 public class RabbitMQConfig {
 
     private final MessagingProperties messaging;
