@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import com.rabbitmq.client.Channel;
 
 import cl.barriodigital.notify.dto.CertificateEvent;
+import cl.barriodigital.notify.dto.EventEnvelope;
 import cl.barriodigital.notify.service.CertificateService;
 
 /** Consumidor del dominio de certificados (q.cmd.certificate). */
@@ -25,8 +26,8 @@ public class CertificateListener {
     }
 
     @RabbitListener(queues = "${barriodigital.messaging.certificate.queue}")
-    public void onMessage(CertificateEvent event, Channel channel,
+    public void onMessage(EventEnvelope<CertificateEvent> envelope, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
-        ackHandler.handle(event, channel, deliveryTag, "certificate", certificateService::dispatch);
+        ackHandler.handle(envelope, channel, deliveryTag, "certificate", certificateService::dispatch);
     }
 }

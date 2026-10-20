@@ -17,11 +17,12 @@ import cl.barriodigital.notify.config.RetryProperties;
 
 import cl.barriodigital.notify.config.RetryProperties;
 import cl.barriodigital.notify.dto.CrewTicketEvent;
+import cl.barriodigital.notify.dto.EventEnvelope;
 import cl.barriodigital.notify.service.CrewTicketService;
 
 class CrewTicketListenerTest {
 
-    // CrewTicketListenerTest
+        // CrewTicketListenerTest
     private final Channel channel = mock(Channel.class);
     private final CrewTicketService service = mock(CrewTicketService.class);
     private final CrewTicketListener listener = new CrewTicketListener(service,
@@ -30,7 +31,10 @@ class CrewTicketListenerTest {
     @Test
     void procesaElTicketYConfirmaElMensaje() throws Exception {
         var event = new CrewTicketEvent("15", "ALUMBRADO", "Plaza Central", "NORMAL");
-        listener.onMessage(event, channel, 7L);
+        var envelope = new EventEnvelope<>("CREW_TICKET", "e-1", "2026-10-20T20:00:00Z", "t-1", "15", event);
+
+        listener.onMessage(envelope, channel, 7L);
+
         verify(service).assign(event);
         verify(channel).basicAck(7L, false);
     }
