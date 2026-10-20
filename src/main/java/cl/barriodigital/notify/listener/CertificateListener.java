@@ -27,7 +27,8 @@ public class CertificateListener {
 
     @RabbitListener(queues = "${barriodigital.messaging.certificate.queue}")
     public void onMessage(EventEnvelope<CertificateEvent> envelope, Channel channel,
-                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
-        ackHandler.handle(envelope, channel, deliveryTag, "certificate", certificateService::dispatch);
+                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,
+                          @Header(AmqpHeaders.CONSUMER_QUEUE) String queue) throws IOException {
+        ackHandler.handle(envelope, channel, deliveryTag, queue, certificateService::dispatch);
     }
 }

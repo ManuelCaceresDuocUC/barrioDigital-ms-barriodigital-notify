@@ -26,7 +26,8 @@ public class EmailListener {
 
     @RabbitListener(queues = "${barriodigital.messaging.email.queue}")
     public void onMessage(EventEnvelope<EmailNotificationEvent> envelope, Channel channel,
-                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
-        ackHandler.handle(envelope, channel, deliveryTag, "email", emailService::send);
+                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,
+                          @Header(AmqpHeaders.CONSUMER_QUEUE) String queue) throws IOException {
+        ackHandler.handle(envelope, channel, deliveryTag, queue, emailService::send);
     }
 }

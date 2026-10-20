@@ -22,15 +22,17 @@ import lombok.extern.slf4j.Slf4j;
 public class AckHandler {
 
     private final RetryProperties retry;
+    private final DlqReporter dlqReporter;
 
-    public AckHandler(RetryProperties retry) {
+    public AckHandler(RetryProperties retry, DlqReporter dlqReporter) {
         this.retry = retry;
+        this.dlqReporter = dlqReporter;
     }
 
     public <T> void handle(EventEnvelope<T> envelope, Channel channel, long deliveryTag,
-                           String domain, Consumer<T> work) throws IOException {
+                           String queue, Consumer<T> work) throws IOException {
         if (envelope == null || envelope.payload() == null) {
-            rejectToDlq(channel, deliveryTag, domain, envelope, 0, "envelope sin payload",
+            rejectToDlq(channel, deliveryTag, queue, envelope, 0, "envelope sin payload",
                     new IllegalArgumentException("El mensaje no trae payload"));
             return;
         }
@@ -41,17 +43,18 @@ public class AckHandler {
             try {
                 work.accept(envelope.payload());
             } catch (IllegalArgumentException ex) {
-                rejectToDlq(channel, deliveryTag, domain, envelope, attempt, "error no recuperable", ex);
+                rejectToDlq(channel, deliveryTag, queue, envelope, attempt, "error no recuperable", ex);
                 return;
             } catch (RuntimeException ex) {
                 if (attempt >= retry.maxAttempts()) {
-                    rejectToDlq(channel, deliveryTag, domain, envelope, attempt, "reintentos agotados", ex);
+                    rejectToDlq(channel, deliveryTag, queue, envelope, attempt, "reintentos agotados", ex);
                     return;
                 }
-                log.warn("Fallo procesando mensaje de {} ({}) (intento {}/{}): {}. Reintento en {} ms",
-                        domain, describe(envelope), attempt, retry.maxAttempts(), ex.toString(), wait.toMillis());
+                log.warn("Fallo procesando mensaje de {} (eventId={}, correlationId={}) (intento {}/{}). Reintento en {} ms",
+                        queue, envelope.eventId(), envelope.correlationId(),
+                        attempt, retry.maxAttempts(), wait.toMillis());
                 if (!pause(wait)) {
-                    rejectToDlq(channel, deliveryTag, domain, envelope, attempt, "proceso interrumpido", ex);
+                    rejectToDlq(channel, deliveryTag, queue, envelope, attempt, "proceso interrumpido", ex);
                     return;
                 }
                 wait = Duration.ofMillis(Math.round(wait.toMillis() * retry.multiplier()));
@@ -62,19 +65,10 @@ public class AckHandler {
         }
     }
 
-    private void rejectToDlq(Channel channel, long deliveryTag, String domain, EventEnvelope<?> envelope,
+    private void rejectToDlq(Channel channel, long deliveryTag, String queue, EventEnvelope<?> envelope,
                              int attempts, String reason, RuntimeException ex) throws IOException {
         channel.basicNack(deliveryTag, false, false);
-        log.error("Mensaje de {} ({}) enviado a la DLQ ({}) tras {} intento(s): {}",
-                domain, describe(envelope), reason, attempts, ex.toString());
-    }
-
-    private static String describe(EventEnvelope<?> envelope) {
-        if (envelope == null) {
-            return "sin envelope";
-        }
-        return "eventId=%s, type=%s, correlationId=%s"
-                .formatted(envelope.eventId(), envelope.type(), envelope.correlationId());
+        dlqReporter.report(queue, envelope, attempts, reason, ex);
     }
 
     private boolean pause(Duration wait) {
