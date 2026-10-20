@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import com.rabbitmq.client.Channel;
 
+import cl.barriodigital.notify.config.IdempotencyProperties;
 import cl.barriodigital.notify.config.RetryProperties;
 import cl.barriodigital.notify.dto.CrewTicketEvent;
 import cl.barriodigital.notify.dto.EventEnvelope;
@@ -23,7 +24,8 @@ class CrewTicketListenerTest {
     private final CrewTicketService service = mock(CrewTicketService.class);
     private final CrewTicketListener listener = new CrewTicketListener(service,
             new AckHandler(new RetryProperties(3, Duration.ofMillis(1), 2.0),
-                    new DlqReporter(new SimpleMeterRegistry())));
+        new DlqReporter(new SimpleMeterRegistry()),
+        new ProcessedEventStore(new IdempotencyProperties(100, Duration.ofHours(1)))));
 
     @Test
     void procesaElTicketYConfirmaElMensaje() throws Exception {

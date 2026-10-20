@@ -46,6 +46,9 @@ barriodigital:
       max-attempts: 3
       initial-interval: 1s
       multiplier: 2.0
+    idempotency:
+      max-entries: 10000
+      ttl: 1h
 management:
   endpoints:
     web:

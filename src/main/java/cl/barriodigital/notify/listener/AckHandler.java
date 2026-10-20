@@ -13,9 +13,9 @@ import cl.barriodigital.notify.dto.EventEnvelope;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Confirmación manual de mensajes: ACK si se procesó, reintentos con backoff si falla algo
- * recuperable, y NACK sin reencolar (el mensaje va a la DLQ) si el error no tiene arreglo
- * o se agotaron los intentos.
+ * Confirmación manual de mensajes: ACK si se procesó (o si ya se había procesado antes),
+ * reintentos con backoff si falla algo recuperable, y NACK sin reencolar (el mensaje va a la
+ * DLQ) si el error no tiene arreglo o se agotaron los intentos.
  */
 @Slf4j
 @Component
@@ -23,10 +23,12 @@ public class AckHandler {
 
     private final RetryProperties retry;
     private final DlqReporter dlqReporter;
+    private final ProcessedEventStore processedEvents;
 
-    public AckHandler(RetryProperties retry, DlqReporter dlqReporter) {
+    public AckHandler(RetryProperties retry, DlqReporter dlqReporter, ProcessedEventStore processedEvents) {
         this.retry = retry;
         this.dlqReporter = dlqReporter;
+        this.processedEvents = processedEvents;
     }
 
     public <T> void handle(EventEnvelope<T> envelope, Channel channel, long deliveryTag,
@@ -34,6 +36,13 @@ public class AckHandler {
         if (envelope == null || envelope.payload() == null) {
             rejectToDlq(channel, deliveryTag, queue, envelope, 0, "envelope sin payload",
                     new IllegalArgumentException("El mensaje no trae payload"));
+            return;
+        }
+
+        if (processedEvents.isProcessed(envelope.eventId())) {
+            log.info("Mensaje duplicado descartado en {} (eventId={}, correlationId={})",
+                    queue, envelope.eventId(), envelope.correlationId());
+            channel.basicAck(deliveryTag, false);
             return;
         }
 
@@ -60,6 +69,7 @@ public class AckHandler {
                 wait = Duration.ofMillis(Math.round(wait.toMillis() * retry.multiplier()));
                 continue;
             }
+            processedEvents.markProcessed(envelope.eventId());
             channel.basicAck(deliveryTag, false);
             return;
         }
