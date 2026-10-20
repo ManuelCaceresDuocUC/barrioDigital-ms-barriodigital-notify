@@ -44,3 +44,8 @@ barriodigital:
       max-attempts: 3
       initial-interval: 1s
       multiplier: 2.0
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
