@@ -1,7 +1,13 @@
 package cl.barriodigital.notify.listener;
 
+import java.io.IOException;
+
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+
+import com.rabbitmq.client.Channel;
 
 import cl.barriodigital.notify.dto.CrewTicketEvent;
 import cl.barriodigital.notify.service.CrewTicketService;
@@ -11,13 +17,16 @@ import cl.barriodigital.notify.service.CrewTicketService;
 public class CrewTicketListener {
 
     private final CrewTicketService crewTicketService;
+    private final AckHandler ackHandler;
 
-    public CrewTicketListener(CrewTicketService crewTicketService) {
+    public CrewTicketListener(CrewTicketService crewTicketService, AckHandler ackHandler) {
         this.crewTicketService = crewTicketService;
+        this.ackHandler = ackHandler;
     }
 
     @RabbitListener(queues = "${barriodigital.messaging.crew.queue}")
-    public void onMessage(CrewTicketEvent event) {
-        crewTicketService.assign(event);
+    public void onMessage(CrewTicketEvent event, Channel channel,
+                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
+        ackHandler.handle(event, channel, deliveryTag, "crew", crewTicketService::assign);
     }
 }

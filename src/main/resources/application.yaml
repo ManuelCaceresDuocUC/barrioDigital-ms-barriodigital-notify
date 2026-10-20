@@ -11,12 +11,7 @@ spring:
     password: ${RABBITMQ_PASSWORD:admin123}
     listener:
       simple:
-        retry:
-          enabled: true
-          max-retries: 3
-          initial-interval: 1000ms
-          multiplier: 2.0
-          max-interval: 5000ms
+        acknowledge-mode: manual
         default-requeue-rejected: false
 
         
@@ -44,3 +39,8 @@ barriodigital:
       direct-key: certificate.gen
       topic-key: certificate.*
       dead-letter-key: certificate.dlq
+    
+    retry:
+      max-attempts: 3
+      initial-interval: 1s
+      multiplier: 2.0
