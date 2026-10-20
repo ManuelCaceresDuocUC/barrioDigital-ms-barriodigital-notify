@@ -15,15 +15,20 @@ import org.junit.jupiter.api.Test;
 import com.rabbitmq.client.Channel;
 
 import cl.barriodigital.notify.config.RetryProperties;
+import cl.barriodigital.notify.dto.EventEnvelope;
 
 class AckHandlerTest {
 
     private final Channel channel = mock(Channel.class);
     private final AckHandler handler = new AckHandler(new RetryProperties(3, Duration.ofMillis(1), 2.0));
 
+    private EventEnvelope<String> envelope() {
+        return new EventEnvelope<>("TEST", "e-1", "2026-10-20T20:00:00Z", "t-1", "15", "datos");
+    }
+
     @Test
     void procesoExitosoConfirmaConAck() throws Exception {
-        handler.handle("evento", channel, 10L, "email", event -> { });
+        handler.handle(envelope(), channel, 10L, "email", payload -> { });
 
         verify(channel).basicAck(10L, false);
         verify(channel, never()).basicNack(anyLong(), anyBoolean(), anyBoolean());
@@ -33,7 +38,7 @@ class AckHandlerTest {
     void errorNoRecuperableVaDirectoALaDlqSinReintentar() throws Exception {
         AtomicInteger calls = new AtomicInteger();
 
-        handler.handle("evento", channel, 10L, "email", event -> {
+        handler.handle(envelope(), channel, 10L, "email", payload -> {
             calls.incrementAndGet();
             throw new IllegalArgumentException("sin destinatario");
         });
@@ -47,7 +52,7 @@ class AckHandlerTest {
     void falloTransitorioSeReintentaYTerminaConAck() throws Exception {
         AtomicInteger calls = new AtomicInteger();
 
-        handler.handle("evento", channel, 10L, "email", event -> {
+        handler.handle(envelope(), channel, 10L, "email", payload -> {
             if (calls.incrementAndGet() < 3) {
                 throw new IllegalStateException("servicio externo caído");
             }
@@ -62,12 +67,24 @@ class AckHandlerTest {
     void sinExitoTrasLosIntentosMaximosVaALaDlq() throws Exception {
         AtomicInteger calls = new AtomicInteger();
 
-        handler.handle("evento", channel, 10L, "email", event -> {
+        handler.handle(envelope(), channel, 10L, "email", payload -> {
             calls.incrementAndGet();
             throw new IllegalStateException("servicio externo caído");
         });
 
         assertThat(calls.get()).isEqualTo(3);
+        verify(channel).basicNack(10L, false, false);
+        verify(channel, never()).basicAck(anyLong(), anyBoolean());
+    }
+
+    @Test
+    void envelopeSinPayloadVaALaDlqSinProcesar() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        var sinPayload = new EventEnvelope<String>("TEST", "e-1", "2026-10-20T20:00:00Z", "t-1", "15", null);
+
+        handler.handle(sinPayload, channel, 10L, "email", payload -> calls.incrementAndGet());
+
+        assertThat(calls.get()).isZero();
         verify(channel).basicNack(10L, false, false);
         verify(channel, never()).basicAck(anyLong(), anyBoolean());
     }

@@ -11,7 +11,7 @@ import com.rabbitmq.client.Channel;
 
 import cl.barriodigital.notify.dto.EmailNotificationEvent;
 import cl.barriodigital.notify.service.EmailService;
-
+import cl.barriodigital.notify.dto.EventEnvelope;
 /** Consumidor del dominio de correos (q.cmd.email). */
 @Component
 public class EmailListener {
@@ -25,8 +25,8 @@ public class EmailListener {
     }
 
     @RabbitListener(queues = "${barriodigital.messaging.email.queue}")
-    public void onMessage(EmailNotificationEvent event, Channel channel,
+    public void onMessage(EventEnvelope<EmailNotificationEvent> envelope, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
-        ackHandler.handle(event, channel, deliveryTag, "email", emailService::send);
+        ackHandler.handle(envelope, channel, deliveryTag, "email", emailService::send);
     }
 }

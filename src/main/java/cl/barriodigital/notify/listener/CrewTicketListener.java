@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import com.rabbitmq.client.Channel;
 
 import cl.barriodigital.notify.dto.CrewTicketEvent;
+import cl.barriodigital.notify.dto.EventEnvelope;
 import cl.barriodigital.notify.service.CrewTicketService;
 
 /** Consumidor del dominio de cuadrillas (q.cmd.crew). */
@@ -25,8 +26,8 @@ public class CrewTicketListener {
     }
 
     @RabbitListener(queues = "${barriodigital.messaging.crew.queue}")
-    public void onMessage(CrewTicketEvent event, Channel channel,
+    public void onMessage(EventEnvelope<CrewTicketEvent> envelope, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
-        ackHandler.handle(event, channel, deliveryTag, "crew", crewTicketService::assign);
+        ackHandler.handle(envelope, channel, deliveryTag, "crew", crewTicketService::assign);
     }
 }

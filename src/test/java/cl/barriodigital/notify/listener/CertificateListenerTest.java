@@ -17,11 +17,12 @@ import cl.barriodigital.notify.config.RetryProperties;
 
 import cl.barriodigital.notify.config.RetryProperties;
 import cl.barriodigital.notify.dto.CertificateEvent;
+import cl.barriodigital.notify.dto.EventEnvelope;
 import cl.barriodigital.notify.service.CertificateService;
 
 class CertificateListenerTest {
 
-    // CertificateListenerTest
+        // CertificateListenerTest
     private final Channel channel = mock(Channel.class);
     private final CertificateService service = mock(CertificateService.class);
     private final CertificateListener listener = new CertificateListener(service,
@@ -30,7 +31,10 @@ class CertificateListenerTest {
     @Test
     void procesaElCertificadoYConfirmaElMensaje() throws Exception {
         var event = new CertificateEvent("11111111-1", "RESIDENCIA", null);
-        listener.onMessage(event, channel, 7L);
+        var envelope = new EventEnvelope<>("CERTIFICATE_REQUEST", "e-1", "2026-10-20T20:00:00Z", "t-1", "15", event);
+
+        listener.onMessage(envelope, channel, 7L);
+
         verify(service).dispatch(event);
         verify(channel).basicAck(7L, false);
     }
