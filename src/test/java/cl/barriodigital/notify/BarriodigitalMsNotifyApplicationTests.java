@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 // Los listeners no arrancan: el test valida el contexto sin depender de un broker RabbitMQ.
-@SpringBootTest(properties = "spring.rabbitmq.listener.simple.auto-startup=false")
+@SpringBootTest(properties = {"spring.rabbitmq.listener.simple.auto-startup=false",
+        "spring.rabbitmq.username=test",
+        "spring.rabbitmq.password=test"})
 class BarriodigitalMsNotifyApplicationTests {
 
     @Test
