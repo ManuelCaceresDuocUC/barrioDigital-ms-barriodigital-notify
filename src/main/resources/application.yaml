@@ -15,9 +15,25 @@ spring:
         acknowledge-mode: manual
         default-requeue-rejected: false
         missing-queues-fatal: false
+  # Servidor SMTP (Gmail por defecto). Usuario y clave llegan por variables de entorno: nunca en el repositorio.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
-        
 barriodigital:
+  mail:
+    # false: solo simula y registra (desarrollo/pruebas). true: envía de verdad por SMTP.
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
   messaging:
     exchanges:
       direct: cmd.direct
@@ -41,7 +57,7 @@ barriodigital:
       direct-key: certificate.gen
       topic-key: certificate.*
       dead-letter-key: certificate.dlq
-    
+
     retry:
       max-attempts: 3
       initial-interval: 1s
@@ -58,3 +74,7 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    mail:
+      # No se consulta al servidor SMTP en cada health check (evita falsos DOWN y conexiones innecesarias).
+      enabled: false
