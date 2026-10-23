@@ -4,14 +4,15 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
-
+import static org.mockito.Mockito.mock;
+import org.springframework.mail.javamail.JavaMailSender;
 import cl.barriodigital.notify.dto.CertificateEvent;
 import cl.barriodigital.notify.dto.CrewTicketEvent;
 import cl.barriodigital.notify.dto.EmailNotificationEvent;
 
 class NotificationServicesTest {
 
-    private final EmailService emailService = new EmailService();
+    private final EmailService emailService = new EmailService(mock(JavaMailSender.class), false, "");
     private final CrewTicketService crewTicketService = new CrewTicketService();
     private final CertificateService certificateService = new CertificateService();
 
