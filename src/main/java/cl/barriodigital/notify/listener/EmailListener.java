@@ -12,7 +12,12 @@ import com.rabbitmq.client.Channel;
 import cl.barriodigital.notify.dto.EmailNotificationEvent;
 import cl.barriodigital.notify.service.EmailService;
 import cl.barriodigital.notify.dto.EventEnvelope;
-/** Consumidor del dominio de correos (q.cmd.email). */
+/**
+ * Consumidor del dominio de correos (q.cmd.email).
+ *
+ * QUÉ ES: adaptador delgado: recibe la orden de enviar un correo y se la pasa a AckHandler con la
+ * acción EmailService.send.
+ */
 @Component
 public class EmailListener {
 
@@ -24,6 +29,7 @@ public class EmailListener {
         this.ackHandler = ackHandler;
     }
 
+    // Se suscribe a q.cmd.email; el mensaje JSON se convierte a EventEnvelope<EmailNotificationEvent>.
     @RabbitListener(queues = "${barriodigital.messaging.email.queue}")
     public void onMessage(EventEnvelope<EmailNotificationEvent> envelope, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,

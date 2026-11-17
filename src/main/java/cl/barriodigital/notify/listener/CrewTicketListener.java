@@ -13,7 +13,12 @@ import cl.barriodigital.notify.dto.CrewTicketEvent;
 import cl.barriodigital.notify.dto.EventEnvelope;
 import cl.barriodigital.notify.service.CrewTicketService;
 
-/** Consumidor del dominio de cuadrillas (q.cmd.crew). */
+/**
+ * Consumidor del dominio de cuadrillas (q.cmd.crew).
+ *
+ * QUÉ ES: adaptador delgado: recibe el ticket y se lo pasa a AckHandler con la acción
+ * CrewTicketService.assign. Misma estructura que EmailListener y CertificateListener.
+ */
 @Component
 public class CrewTicketListener {
 
@@ -25,6 +30,7 @@ public class CrewTicketListener {
         this.ackHandler = ackHandler;
     }
 
+    // Se suscribe a q.cmd.crew; el mensaje JSON se convierte a EventEnvelope<CrewTicketEvent>.
     @RabbitListener(queues = "${barriodigital.messaging.crew.queue}")
     public void onMessage(EventEnvelope<CrewTicketEvent> envelope, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,

@@ -5,10 +5,16 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.Assert;
 
-/** Política de reintentos del consumidor, centralizada en application.yaml. */
+/**
+ * Política de reintentos del consumidor, centralizada en application.yaml.
+ *
+ * QUÉ ES: record con los valores de barriodigital.messaging.retry (hoy: 3 intentos, espera inicial 1 s,
+ * multiplicador 2 => esperas de 1 s y 2 s entre intentos). Lo usa AckHandler.
+ */
 @ConfigurationProperties(prefix = "barriodigital.messaging.retry")
 public record RetryProperties(int maxAttempts, Duration initialInterval, double multiplier) {
 
+    // Validaciones al arrancar (fail-fast): configuraciones absurdas impiden iniciar la aplicación.
     public RetryProperties {
         Assert.isTrue(maxAttempts >= 1, "retry.max-attempts debe ser al menos 1");
         Assert.notNull(initialInterval, "retry.initial-interval es obligatorio");

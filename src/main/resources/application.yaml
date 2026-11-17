@@ -1,3 +1,4 @@
+# Configuración del microservicio de notificaciones (ms-notify), consumidor de RabbitMQ.
 server:
   port: 8083
 
@@ -5,6 +6,7 @@ spring:
   application:
     name: barriodigital-ms-notify
   rabbitmq:
+    # Datos de conexión al clúster RabbitMQ (en ec2-apps llegan por variables de entorno del compose).
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER}
@@ -12,9 +14,9 @@ spring:
     connection-timeout: 5s
     listener:
       simple:
-        acknowledge-mode: manual
-        default-requeue-rejected: false
-        missing-queues-fatal: false
+        acknowledge-mode: manual          # El código confirma (ACK/NACK) a mano: ver AckHandler.
+        default-requeue-rejected: false   # Un rechazo NO vuelve a la cola: va a la DLQ.
+        missing-queues-fatal: false       # Si falta una cola al arrancar, no se cae la app.
   # Servidor SMTP (Gmail por defecto). Usuario y clave llegan por variables de entorno: nunca en el repositorio.
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
@@ -22,10 +24,10 @@ spring:
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
-      mail.smtp.starttls.required: true
-      mail.smtp.connectiontimeout: 5000
+      mail.smtp.auth: true                  # Exige usuario y clave.
+      mail.smtp.starttls.enable: true       # Cifra la conexión (STARTTLS).
+      mail.smtp.starttls.required: true     # Si el servidor no permite cifrar, no envía.
+      mail.smtp.connectiontimeout: 5000     # Tiempos máximos en milisegundos: evitan quedar colgado.
       mail.smtp.timeout: 5000
       mail.smtp.writetimeout: 5000
 
@@ -34,22 +36,23 @@ barriodigital:
     # false: solo simula y registra (desarrollo/pruebas). true: envía de verdad por SMTP.
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
+  # Nombres de exchanges, colas y claves (los lee MessagingProperties y RabbitMQConfig).
   messaging:
     exchanges:
-      direct: cmd.direct
-      topic: cmd.topic
-      dead-letter: cmd.dead.dlx
+      direct: cmd.direct          # Enruta por clave exacta.
+      topic: cmd.topic            # Enruta por patrón.
+      dead-letter: cmd.dead.dlx   # Recibe los mensajes rechazados.
     email:
       queue: q.cmd.email
       dead-letter-queue: q.cmd.email.dlq
       direct-key: email.send
-      topic-key: email.*
+      topic-key: email.*          # * = exactamente una palabra.
       dead-letter-key: email.dlq
     crew:
       queue: q.cmd.crew
       dead-letter-queue: q.cmd.crew.dlq
       direct-key: crew.ticket
-      topic-key: crew.#
+      topic-key: crew.#           # # = cero o más palabras.
       dead-letter-key: crew.dlq
     certificate:
       queue: q.cmd.certificate
@@ -58,22 +61,25 @@ barriodigital:
       topic-key: certificate.*
       dead-letter-key: certificate.dlq
 
+    # Política de reintentos (ver AckHandler): esperas de 1 s, 2 s... hasta 3 intentos.
     retry:
       max-attempts: 3
       initial-interval: 1s
       multiplier: 2.0
+    # Memoria de eventId ya procesados (ver ProcessedEventStore).
     idempotency:
       max-entries: 10000
       ttl: 1h
+# Endpoints de monitoreo de Spring Actuator.
 management:
   endpoints:
     web:
       exposure:
-        include: health,metrics
+        include: health,metrics   # Solo se exponen /actuator/health y /actuator/metrics.
   endpoint:
     health:
       probes:
-        enabled: true
+        enabled: true             # Habilita /actuator/health/liveness y /readiness (los usa Docker).
   health:
     mail:
       # No se consulta al servidor SMTP en cada health check (evita falsos DOWN y conexiones innecesarias).
