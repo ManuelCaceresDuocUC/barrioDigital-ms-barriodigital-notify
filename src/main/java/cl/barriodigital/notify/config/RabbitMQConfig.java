@@ -12,7 +12,19 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * QUÉ ES: la "topología" de RabbitMQ declarada como código.
+ *
+ * QUÉ HACE: al arrancar, Spring AMQP lee estos beans y crea en el broker (si no existen) los 3 exchanges,
+ * las 3 colas principales, sus 3 DLQ y los bindings que las conectan. Resultado:
+ *
+ *   cmd.direct --(email.send / crew.ticket / certificate.gen)--> q.cmd.email / q.cmd.crew / q.cmd.certificate
+ *   cmd.topic  --(email.* / crew.# / certificate.*)------------> las mismas colas (enrutado por patrón)
+ *   Si un mensaje es rechazado (NACK sin reencolar) en una cola principal:
+ *   cmd.dead.dlx --(email.dlq / crew.dlq / certificate.dlq)----> q.cmd.*.dlq
+ */
 @Configuration
+// Registra los tres records de propiedades como beans (leen application.yaml).
 @EnableConfigurationProperties({ MessagingProperties.class, RetryProperties.class, IdempotencyProperties.class })
 public class RabbitMQConfig {
 
@@ -23,16 +35,19 @@ public class RabbitMQConfig {
     }
 
     // --- Exchanges ---
+    // Direct: enruta por clave EXACTA (es el que usa hoy rabbitadmin al publicar).
     @Bean
     public DirectExchange directExchange() {
         return new DirectExchange(messaging.exchanges().direct());
     }
 
+    // Topic: enruta por patrones (* = una palabra, # = cero o más palabras). Declarado para uso futuro.
     @Bean
     public TopicExchange topicExchange() {
         return new TopicExchange(messaging.exchanges().topic());
     }
 
+    // Dead-letter exchange: recibe los mensajes que las colas principales rechazan.
     @Bean
     public DirectExchange deadLetterExchange() {
         return new DirectExchange(messaging.exchanges().deadLetter());
@@ -55,6 +70,7 @@ public class RabbitMQConfig {
     }
 
     // --- Colas DLQ ---
+    // Durables: sobreviven a un reinicio del broker, así no se pierden los mensajes fallidos.
     @Bean
     public Queue emailDlq() {
         return QueueBuilder.durable(messaging.email().deadLetterQueue()).build();
@@ -71,6 +87,7 @@ public class RabbitMQConfig {
     }
 
     // --- Bindings direct (routing key exacta) ---
+    // Un binding = regla "los mensajes de este exchange con esta clave van a esta cola".
     @Bean
     public Binding emailDirectBinding() {
         return directBinding(emailQueue(), messaging.email());
@@ -119,11 +136,14 @@ public class RabbitMQConfig {
     }
 
     // Convierte JSON a DTOs Java automáticamente
+    // (el mensaje llega como JSON y el listener recibe directamente un EventEnvelope<...>).
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }
 
+    // Cola principal durable cuyo "dead letter" apunta al exchange de errores con la clave de su dominio.
+    // Esa configuración hace que un basicNack(requeue=false) mande el mensaje a la DLQ correspondiente.
     private Queue mainQueue(MessagingProperties.Domain domain) {
         return QueueBuilder.durable(domain.queue())
                 .deadLetterExchange(messaging.exchanges().deadLetter())
@@ -131,6 +151,7 @@ public class RabbitMQConfig {
                 .build();
     }
 
+    // Helpers que construyen los tres tipos de binding para no repetir código.
     private Binding directBinding(Queue queue, MessagingProperties.Domain domain) {
         return BindingBuilder.bind(queue).to(directExchange()).with(domain.directKey());
     }
